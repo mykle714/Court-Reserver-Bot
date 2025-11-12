@@ -1,0 +1,12 @@
+curl 'https://reservations.courtreserve.com/Online/ReservationsApi/CreateReservation?id=7031&uiCulture=en-US&start=Thu%20Oct%2002%202025%2016%3A00%3A00%20GMT-0700%20%28Pacific%20Daylight%20Time%29&end=Thu%20Oct%2002%202025%2016%3A30%3A00%20GMT-0700%20%28Pacific%20Daylight%20Time%29&courtType=&courtLabel=Redmond%204&customSchedulerId=17109&isConsolidated=False&instructorId=&isMobileLayout=True&useNewTemplate=True&returnUrlStartPage=https://mobileapp.courtreserve.com/Online/Reservations/Bookings/7031?sId=17109&requestData=SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP%2fCBlLvnwXLectu6zf%2brYsKwBsDiqnDKlI8qAAMCVBaMyUywA0REwK%2bcgQWdbD%2bZoKM0R8Q91d1nWqRwr4yaiYDnNU4qWvlbztcWW%2fLw%3d' \
+-H 'Host: reservations.courtreserve.com' \
+-H 'Accept: */*' \
+-H 'Origin: https://mobileapp.courtreserve.com' \
+-H 'Connection: keep-alive' \
+-H 'Sec-Fetch-Mode: cors' \
+-H 'Sec-Fetch-Site: same-site' \
+-H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_6_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' \
+-H 'Referer: https://mobileapp.courtreserve.com/' \
+-H 'Sec-Fetch-Dest: empty' \
+-H 'Accept-Language: en-US,en;q=0.9' \
+--proxy http://localhost:9495

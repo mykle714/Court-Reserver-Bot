@@ -1,0 +1,14 @@
+curl 'https://backend.courtreserve.com/api/scheduler/member-expanded?id=7031&RequestData=SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP/CBlLvnwXLectu6zf+rYsKwBsDiqnDKlI8qAAMCVBaMyUywA0REwK+cgQWdbxmByWD7XkR9N0oOSPmpHEdu8JQXC/+V/QhUQ5cwdWP/UTuk8sP9NweZ1FyTWlWVUjE3fjfobtyPzeWLRdqXidGZy7MJnkxUdgkcC3JYw5QaJFtmR9mgeSBBVZ5LAvbk4hpamBJ0Okbw=&sort=&group=&filter=&jsonData=%7B%22startDate%22%3A%222025-11-13T20%3A32%3A44.000Z%22%2C%22orgId%22%3A%227031%22%2C%22TimeZone%22%3A%22America%2FLos_Angeles%22%2C%22Date%22%3A%22Thu%2C%2013%20Nov%202025%2020%3A32%3A44%20GMT%22%2C%22KendoDate%22%3A%7B%22Year%22%3A2025%2C%22Month%22%3A11%2C%22Day%22%3A13%7D%2C%22UiCulture%22%3A%22en-US%22%2C%22CostTypeId%22%3A%2288151%22%2C%22CustomSchedulerId%22%3A%2217109%22%2C%22ReservationMinInterval%22%3A%2260%22%2C%22SelectedCourtIds%22%3A%2252667%2C52668%2C52669%2C52670%2C52671%2C52672%2C52673%2C52674%2C52675%2C52676%2C52677%22%2C%22SelectedInstructorIds%22%3A%22%22%2C%22MemberIds%22%3A%226098795%22%2C%22MemberFamilyId%22%3A%22%22%2C%22EmbedCodeId%22%3A%22%22%2C%22HideEmbedCodeReservationDetails%22%3A%22True%22%7D' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9' \
+  -H 'authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IkZDQjYyMUQ3OUJBRTY2RkUxMDJENjVEMzU0MURGNDNFIiwidHlwIjoiSldUIn0.eyJleHAiOjE3NjI3NDY4MzEsImlzcyI6Imh0dHBzOi8vYmFja2VuZC5jb3VydHJlc2VydmUuY29tLyIsImF1ZCI6ImNvdXJ0UmVzZXJ2ZUFwaSJ9.5ShjJJ7APd1YSxSGf1jQALT2kiynPVybRDyoU7KMpyJNbKQqs6j8IkAsvSq5nxZBD32Atu6L9AzWc7V418lNcwowdBFV4VVWXcftT48wyzbh8cr6yWxjocGh5KzcFjICFvYCYiQz4ovn5jG7d8Si3iF0tFglXRKzT2fWaV97tjRCh5ZGLgeEEkf3N74ShgoLB6iOw10qWF629sXVQGAbLeC-ElLay4OUJPOz9rEgbXGFP-HBPASubUE914lyRSEzrH26oRRDvXtUsqRUzsRyeAzk0QwnSLlF64BPORVfWfsyB4QemctB3KUcLJpjoL9rP4_AOYs6bLpBILEL2b-doQ' \
+  -H 'origin: https://app.courtreserve.com' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://app.courtreserve.com/' \
+  -H 'sec-ch-ua: "Chromium";v="142", "Microsoft Edge";v="142", "Not_A Brand";v="99"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-site' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'
