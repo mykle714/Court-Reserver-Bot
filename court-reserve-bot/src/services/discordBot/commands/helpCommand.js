@@ -40,12 +40,12 @@ class HelpCommand {
           name: '⚔️ Reservation Fighter Commands',
           value: [
             '`!ft status` - Show fighter status',
-            '`!ft enable` - Enable and start fighter',
+            '`!ft list` - List all fighter targets',
+            '`!ft enable` - Enable fighter and schedule jobs',
             '`!ft disable` - Disable fighter',
-            '`!ft set court <name>` - Set target court',
-            '`!ft set date <YYYY-MM-DD>` - Set target date',
-            '`!ft set time <HH:MM>` - Set start time',
-            '`!ft set duration <minutes>` - Set duration',
+            '`!ft add <court> <date> <time> <duration>` - Add target',
+            '`!ft remove <target_id>` - Remove target',
+            '`!ft strategy <duration_sec> <interval_ms>` - Update strategy',
             '`!ft reload` - Reload configuration'
           ].join('\n')
         },
@@ -117,9 +117,9 @@ class HelpCommand {
           {
             name: '⚔️ Reservation Fighter',
             value: [
-              `Status: ${fighterStatus.enabled ? (fighterStatus.running ? '🏃 Running' : '✅ Enabled') : '❌ Disabled'}`,
-              `Court: ${fighterStatus.target.court || 'Not set'}`,
-              `Date: ${fighterStatus.target.date || 'Not set'}`
+              `Status: ${fighterStatus.enabled ? '✅ Enabled' : '❌ Disabled'}`,
+              `Active Targets: ${fighterStatus.targetCount}`,
+              `Active Jobs: ${fighterStatus.activeJobCount}`
             ].join('\n'),
             inline: true
           },
