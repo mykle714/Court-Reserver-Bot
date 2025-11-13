@@ -39,17 +39,11 @@ class ConfigLoader {
   async createDefault() {
     const defaultConfig = {
       enabled: false,
-      target: {
-        court: "",
-        date: "",
-        startTime: "",
-        duration: 60
-      },
       strategy: {
-        parallelRequests: 50,
         durationSeconds: 20,
         requestIntervalMs: 100
-      }
+      },
+      fighterTargets: []
     };
 
     await this.save(defaultConfig);
@@ -106,23 +100,76 @@ class ConfigLoader {
   }
 
   /**
-   * Update target configuration
-   * @param {Object} updates - Partial target updates
-   * @returns {Promise<Object>} Updated target
+   * Add a new fighter target
+   * @param {Object} target - Target configuration
+   * @returns {Promise<Object>} Added target with generated ID
    */
-  async updateTarget(updates) {
+  async addTarget(target) {
     if (!this.config) {
       await this.load();
     }
 
-    this.config.target = {
-      ...this.config.target,
-      ...updates
-    };
+    // Generate unique ID
+    const id = `fighter-${Date.now()}`;
+    const newTarget = { id, ...target };
 
+    this.config.fighterTargets.push(newTarget);
     await this.save(this.config);
-    logger.info('Fighter target updated', updates);
-    return this.config.target;
+    
+    logger.info('Added fighter target', { id, court: target.court, date: target.date });
+    return newTarget;
+  }
+
+  /**
+   * Remove a fighter target
+   * @param {string} targetId - Target ID to remove
+   * @returns {Promise<boolean>} True if removed, false if not found
+   */
+  async removeTarget(targetId) {
+    if (!this.config) {
+      await this.load();
+    }
+
+    const initialLength = this.config.fighterTargets.length;
+    this.config.fighterTargets = this.config.fighterTargets.filter(
+      target => target.id !== targetId
+    );
+
+    if (this.config.fighterTargets.length < initialLength) {
+      await this.save(this.config);
+      logger.info('Removed fighter target', { id: targetId });
+      return true;
+    }
+
+    logger.warn('Fighter target not found', { id: targetId });
+    return false;
+  }
+
+  /**
+   * Remove expired targets (past dates)
+   * @returns {Promise<number>} Number of targets removed
+   */
+  async cleanupExpired() {
+    if (!this.config) {
+      await this.load();
+    }
+
+    const now = new Date();
+    const initialLength = this.config.fighterTargets.length;
+
+    this.config.fighterTargets = this.config.fighterTargets.filter(target => {
+      const targetDate = new Date(target.date);
+      return targetDate >= now;
+    });
+
+    const removed = initialLength - this.config.fighterTargets.length;
+    
+    if (removed > 0) {
+      await this.save(this.config);
+      logger.info(`Cleaned up ${removed} expired fighter targets`);
+    }
+
+    return removed;
   }
 
   /**

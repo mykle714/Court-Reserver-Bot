@@ -12,12 +12,12 @@ class FighterCommands {
   getHandlers() {
     return {
       'ft status': this.status.bind(this),
+      'ft list': this.list.bind(this),
       'ft enable': this.enable.bind(this),
       'ft disable': this.disable.bind(this),
-      'ft set court': this.setCourt.bind(this),
-      'ft set date': this.setDate.bind(this),
-      'ft set time': this.setTime.bind(this),
-      'ft set duration': this.setDuration.bind(this),
+      'ft add': this.add.bind(this),
+      'ft remove': this.remove.bind(this),
+      'ft strategy': this.updateStrategy.bind(this),
       'ft reload': this.reload.bind(this)
     };
   }
@@ -30,55 +30,83 @@ class FighterCommands {
       const status = reservationFighter.getStatus();
       
       const embed = {
-        color: status.enabled ? (status.running ? 0xffaa00 : 0x00ff00) : 0xff0000,
+        color: status.enabled ? 0x00ff00 : 0xff0000,
         title: '⚔️ Reservation Fighter Status',
         fields: [
           {
             name: 'Status',
-            value: status.enabled ? (status.running ? '🏃 Running' : '✅ Enabled') : '❌ Disabled',
+            value: status.enabled ? '✅ Enabled' : '❌ Disabled',
             inline: true
           },
           {
-            name: 'Target Court',
-            value: status.target.court || 'Not set',
+            name: 'Active Targets',
+            value: `${status.targetCount}`,
             inline: true
           },
           {
-            name: 'Target Date',
-            value: status.target.date || 'Not set',
+            name: 'Active Jobs',
+            value: `${status.activeJobCount}`,
             inline: true
           },
           {
-            name: 'Start Time',
-            value: status.target.startTime || 'Not set',
+            name: 'Active Bursts',
+            value: `${status.activeBurstCount}`,
             inline: true
           },
           {
-            name: 'Duration',
-            value: status.target.duration ? `${status.target.duration} min` : 'Not set',
+            name: 'Burst Duration',
+            value: `${status.strategy.durationSeconds || 20}s`,
             inline: true
           },
           {
-            name: 'Parallel Requests',
-            value: `${status.strategy.parallelRequests || 50}`,
+            name: 'Request Interval',
+            value: `${status.strategy.requestIntervalMs || 100}ms`,
             inline: true
           }
         ],
+        footer: {
+          text: 'Use !ft list to see all targets'
+        },
         timestamp: new Date()
       };
-
-      // Add session info if running
-      if (status.currentSession) {
-        const results = status.currentSession.results;
-        embed.fields.push({
-          name: 'Current Session',
-          value: `Total: ${results.total} | Success: ${results.success} | Failed: ${results.failed}`
-        });
-      }
 
       await message.reply({ embeds: [embed] });
     } catch (error) {
       logger.error('Error getting fighter status', { error: error.message });
+      await message.reply(`❌ Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * List all fighter targets
+   */
+  async list(message, args) {
+    try {
+      const status = reservationFighter.getStatus();
+      
+      if (status.targets.length === 0) {
+        await message.reply('📋 No fighter targets configured.\nUse `!ft add <court> <date> <time> <duration>` to add one.');
+        return;
+      }
+
+      const embed = {
+        color: 0x00ff00,
+        title: '⚔️ Fighter Targets',
+        description: status.targets.map((target, index) => {
+          return `**${index + 1}.** \`${target.id}\`\n` +
+                 `   Court: **${target.court}**\n` +
+                 `   Date: **${target.date}**\n` +
+                 `   Time: **${target.startTime}** (${target.duration}min)`;
+        }).join('\n\n'),
+        footer: {
+          text: `Total: ${status.targets.length} targets`
+        },
+        timestamp: new Date()
+      };
+
+      await message.reply({ embeds: [embed] });
+    } catch (error) {
+      logger.error('Error listing fighter targets', { error: error.message });
       await message.reply(`❌ Error: ${error.message}`);
     }
   }
@@ -89,7 +117,7 @@ class FighterCommands {
   async enable(message, args) {
     try {
       await reservationFighter.enable();
-      await message.reply('✅ Reservation fighter enabled and started');
+      await message.reply('✅ Reservation fighter enabled and jobs scheduled');
     } catch (error) {
       logger.error('Error enabling fighter', { error: error.message });
       await message.reply(`❌ Error: ${error.message}`);
@@ -110,102 +138,138 @@ class FighterCommands {
   }
 
   /**
-   * Set target court
-   * Usage: !ft set court <court_name>
+   * Add a new fighter target
+   * Usage: !ft add <court> <date> <time> <duration>
+   * Example: !ft add 52667 2025-11-15 18:00 60
    */
-  async setCourt(message, args) {
+  async add(message, args) {
     try {
-      if (args.length < 1) {
-        await message.reply('❌ Usage: `!ft set court <court_name>`');
+      if (args.length < 4) {
+        await message.reply(
+          '❌ Usage: `!ft add <court> <date> <time> <duration>`\n' +
+          'Example: `!ft add 52667 2025-11-15 18:00 60`\n\n' +
+          '• **court**: Court ID (e.g., 52667)\n' +
+          '• **date**: Date in YYYY-MM-DD format\n' +
+          '• **time**: Start time in HH:MM format\n' +
+          '• **duration**: Duration in minutes'
+        );
         return;
       }
 
-      const court = args.join(' ');
-      await reservationFighter.updateTarget({ court });
-      await message.reply(`✅ Fighter target court set to: **${court}**`);
-    } catch (error) {
-      logger.error('Error setting fighter court', { error: error.message });
-      await message.reply(`❌ Error: ${error.message}`);
-    }
-  }
+      const [court, date, startTime, durationStr] = args;
+      const duration = parseInt(durationStr, 10);
 
-  /**
-   * Set target date
-   * Usage: !ft set date <YYYY-MM-DD>
-   */
-  async setDate(message, args) {
-    try {
-      if (args.length < 1) {
-        await message.reply('❌ Usage: `!ft set date <YYYY-MM-DD>`\nExample: `!ft set date 2025-11-15`');
-        return;
-      }
-
-      const date = args[0];
-      
-      // Validate date format
+      // Validate date
       const dateObj = new Date(date);
       if (isNaN(dateObj.getTime())) {
         await message.reply('❌ Invalid date format. Use YYYY-MM-DD');
         return;
       }
 
-      await reservationFighter.updateTarget({ date });
-      await message.reply(`✅ Fighter target date set to: **${date}**`);
-    } catch (error) {
-      logger.error('Error setting fighter date', { error: error.message });
-      await message.reply(`❌ Error: ${error.message}`);
-    }
-  }
-
-  /**
-   * Set target time
-   * Usage: !ft set time <HH:MM>
-   */
-  async setTime(message, args) {
-    try {
-      if (args.length < 1) {
-        await message.reply('❌ Usage: `!ft set time <HH:MM>`\nExample: `!ft set time 18:00`');
-        return;
-      }
-
-      const startTime = args[0];
-      
-      // Basic validation
+      // Validate time
       if (!/^\d{2}:\d{2}$/.test(startTime)) {
         await message.reply('❌ Invalid time format. Use HH:MM (e.g., 18:00)');
         return;
       }
 
-      await reservationFighter.updateTarget({ startTime });
-      await message.reply(`✅ Fighter start time set to: **${startTime}**`);
-    } catch (error) {
-      logger.error('Error setting fighter time', { error: error.message });
-      await message.reply(`❌ Error: ${error.message}`);
-    }
-  }
-
-  /**
-   * Set duration
-   * Usage: !ft set duration <minutes>
-   */
-  async setDuration(message, args) {
-    try {
-      if (args.length < 1) {
-        await message.reply('❌ Usage: `!ft set duration <minutes>`\nExample: `!ft set duration 60`');
-        return;
-      }
-
-      const duration = parseInt(args[0], 10);
-      
+      // Validate duration
       if (isNaN(duration) || duration <= 0) {
         await message.reply('❌ Duration must be a positive number');
         return;
       }
 
-      await reservationFighter.updateTarget({ duration });
-      await message.reply(`✅ Fighter duration set to: **${duration} minutes**`);
+      const target = await reservationFighter.addTarget({
+        court,
+        date,
+        startTime,
+        duration
+      });
+
+      await message.reply(
+        `✅ Fighter target added!\n\n` +
+        `**ID:** \`${target.id}\`\n` +
+        `**Court:** ${target.court}\n` +
+        `**Date:** ${target.date}\n` +
+        `**Time:** ${target.startTime}\n` +
+        `**Duration:** ${target.duration} minutes\n\n` +
+        `${reservationFighter.getStatus().enabled ? '🏃 Job scheduled and running' : '⏸️ Fighter is disabled. Use `!ft enable` to start'}`
+      );
     } catch (error) {
-      logger.error('Error setting fighter duration', { error: error.message });
+      logger.error('Error adding fighter target', { error: error.message });
+      await message.reply(`❌ Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Remove a fighter target
+   * Usage: !ft remove <target_id>
+   */
+  async remove(message, args) {
+    try {
+      if (args.length < 1) {
+        await message.reply('❌ Usage: `!ft remove <target_id>`\nUse `!ft list` to see target IDs');
+        return;
+      }
+
+      const targetId = args[0];
+      const removed = await reservationFighter.removeTarget(targetId);
+
+      if (removed) {
+        await message.reply(`✅ Fighter target \`${targetId}\` removed`);
+      } else {
+        await message.reply(`❌ Target \`${targetId}\` not found`);
+      }
+    } catch (error) {
+      logger.error('Error removing fighter target', { error: error.message });
+      await message.reply(`❌ Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update strategy configuration
+   * Usage: !ft strategy <duration_seconds> <interval_ms>
+   * Example: !ft strategy 30 50
+   */
+  async updateStrategy(message, args) {
+    try {
+      if (args.length < 2) {
+        const status = reservationFighter.getStatus();
+        await message.reply(
+          '❌ Usage: `!ft strategy <duration_seconds> <interval_ms>`\n' +
+          'Example: `!ft strategy 30 50`\n\n' +
+          `**Current Strategy:**\n` +
+          `• Burst Duration: ${status.strategy.durationSeconds || 20} seconds\n` +
+          `• Request Interval: ${status.strategy.requestIntervalMs || 100} ms`
+        );
+        return;
+      }
+
+      const durationSeconds = parseInt(args[0], 10);
+      const requestIntervalMs = parseInt(args[1], 10);
+
+      if (isNaN(durationSeconds) || durationSeconds <= 0) {
+        await message.reply('❌ Duration must be a positive number');
+        return;
+      }
+
+      if (isNaN(requestIntervalMs) || requestIntervalMs <= 0) {
+        await message.reply('❌ Interval must be a positive number');
+        return;
+      }
+
+      await reservationFighter.updateStrategy({
+        durationSeconds,
+        requestIntervalMs
+      });
+
+      await message.reply(
+        `✅ Fighter strategy updated!\n\n` +
+        `**Burst Duration:** ${durationSeconds} seconds\n` +
+        `**Request Interval:** ${requestIntervalMs} ms\n\n` +
+        `Each target will send ~${Math.floor(durationSeconds * 1000 / requestIntervalMs)} requests per burst`
+      );
+    } catch (error) {
+      logger.error('Error updating fighter strategy', { error: error.message });
       await message.reply(`❌ Error: ${error.message}`);
     }
   }

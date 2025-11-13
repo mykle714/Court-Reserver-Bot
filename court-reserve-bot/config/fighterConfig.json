@@ -1,14 +1,8 @@
 {
   "enabled": false,
-  "target": {
-    "court": "Court 1",
-    "date": "2025-11-15",
-    "startTime": "18:00",
-    "duration": 60
-  },
   "strategy": {
-    "parallelRequests": 50,
     "durationSeconds": 20,
     "requestIntervalMs": 100
-  }
+  },
+  "fighterTargets": []
 }

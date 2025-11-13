@@ -1,20 +1,20 @@
 const EventEmitter = require('events');
-const pLimit = require('p-limit');
 const logger = require('../../utils/logger').createServiceLogger('ReservationFighter');
 const configLoader = require('./configLoader');
+const JobGenerator = require('./jobGenerator');
 const apiClient = require('../../utils/apiClient');
 
 /**
  * Reservation Fighter Service
- * Makes many parallel API requests over a configured duration
+ * Manages jobs that repeatedly attempt to reserve specific courts
  */
 class ReservationFighter extends EventEmitter {
   constructor() {
     super();
+    this.jobGenerator = new JobGenerator();
     this.enabled = false;
-    this.running = false;
-    this.currentSession = null;
     this.initialized = false;
+    this.activeBursts = new Map(); // Track burst sessions per target
   }
 
   /**
@@ -29,15 +29,15 @@ class ReservationFighter extends EventEmitter {
       const config = await configLoader.load();
       this.enabled = config.enabled;
 
+      // Schedule jobs for all targets
+      if (this.enabled) {
+        await this.scheduleAllJobs();
+      }
+
       this.initialized = true;
       logger.info(`Reservation Fighter initialized (${this.enabled ? 'ENABLED' : 'DISABLED'})`);
       
       this.emit('initialized');
-
-      // Auto-start if enabled
-      if (this.enabled) {
-        await this.start();
-      }
     } catch (error) {
       logger.error('Failed to initialize Reservation Fighter', { error: error.message });
       throw error;
@@ -45,232 +45,212 @@ class ReservationFighter extends EventEmitter {
   }
 
   /**
-   * Start the fighter (begins making requests)
+   * Schedule jobs for all configured targets
    * @returns {Promise<void>}
    */
-  async start() {
-    if (this.running) {
-      logger.warn('Fighter is already running');
-      return;
-    }
-
-    if (!this.enabled) {
-      logger.warn('Fighter is disabled, cannot start');
-      throw new Error('Fighter is disabled');
-    }
-
+  async scheduleAllJobs() {
     const config = configLoader.get();
-    const { target, strategy } = config;
-
-    // Validate target
-    const validation = configLoader.validateTarget(target);
-    if (!validation.valid) {
-      const error = `Invalid target configuration: ${validation.errors.join(', ')}`;
-      logger.error(error);
-      throw new Error(error);
+    if (!config || !config.fighterTargets) {
+      logger.warn('No fighter targets to schedule');
+      return;
     }
 
-    this.running = true;
-    this.currentSession = {
-      startTime: new Date(),
-      target: { ...target },
-      strategy: { ...strategy },
-      results: {
-        total: 0,
-        success: 0,
-        failed: 0,
-        responses: []
-      }
-    };
-
-    logger.info('Starting reservation fighter', {
-      target,
-      strategy
-    });
-
-    this.emit('started', { target, strategy });
-
-    // Run the burst
-    try {
-      await this.runBurst();
-    } catch (error) {
-      logger.error('Fighter burst failed', { error: error.message });
-      this.emit('error', { error });
-    } finally {
-      this.running = false;
-      this.emitResults();
+    logger.info(`Scheduling jobs for ${config.fighterTargets.length} targets`);
+    
+    for (const target of config.fighterTargets) {
+      this.jobGenerator.createJob(target, (t) => this.runBurst(t));
     }
+
+    logger.info(`Scheduled ${this.jobGenerator.getJobCount()} active jobs`);
   }
 
   /**
-   * Run the request burst
+   * Run a burst attack for a specific target
+   * @param {Object} target - Fighter target
    * @returns {Promise<void>}
    */
-  async runBurst() {
-    const { target, strategy } = this.currentSession;
-    const { parallelRequests, durationSeconds, requestIntervalMs } = strategy;
-
-    const limit = pLimit(parallelRequests);
-    const endTime = Date.now() + (durationSeconds * 1000);
-    const requests = [];
-
-    logger.info(`Starting ${durationSeconds}s burst with ${parallelRequests} parallel requests`);
-
-    let requestCount = 0;
-
-    // Create request loop
-    const makeRequest = async () => {
-      const reqId = ++requestCount;
-      
-      try {
-        const startTime = Date.now();
-        const result = await apiClient.makeReservation(target);
-        const endTime = Date.now();
-        
-        logger.info(`Request ${reqId} succeeded!`, {
-          reservationId: result?.id,
-          duration: endTime - startTime
-        });
-
-        this.currentSession.results.success++;
-        this.currentSession.results.responses.push({
-          id: reqId,
-          success: true,
-          data: result,
-          timestamp: new Date().toISOString()
-        });
-
-        this.emit('requestSuccess', { requestId: reqId, result });
-        
-        return { success: true, result };
-      } catch (error) {
-        logger.debug(`Request ${reqId} failed: ${error.message}`);
-        
-        this.currentSession.results.failed++;
-        this.currentSession.results.responses.push({
-          id: reqId,
-          success: false,
-          error: error.message,
-          timestamp: new Date().toISOString()
-        });
-
-        this.emit('requestFailed', { requestId: reqId, error });
-        
-        return { success: false, error };
-      } finally {
-        this.currentSession.results.total++;
-      }
-    };
-
-    // Schedule requests continuously until duration expires
-    while (Date.now() < endTime && this.running) {
-      requests.push(limit(() => makeRequest()));
-      
-      // Wait for interval if we haven't reached end time
-      if (Date.now() + requestIntervalMs < endTime) {
-        await new Promise(resolve => setTimeout(resolve, requestIntervalMs));
-      }
+  async runBurst(target) {
+    if (!this.enabled) {
+      logger.debug('Fighter disabled, skipping burst');
+      return;
     }
 
-    // Wait for all pending requests to complete
-    logger.info('Waiting for all requests to complete...');
-    await Promise.all(requests);
-    
-    logger.info('Burst complete', {
-      total: this.currentSession.results.total,
-      success: this.currentSession.results.success,
-      failed: this.currentSession.results.failed
+    const { id, court, date, startTime, duration } = target;
+    const config = configLoader.get();
+    const { durationSeconds, requestIntervalMs } = config.strategy;
+
+    // Check if burst is already running for this target
+    if (this.activeBursts.has(id)) {
+      logger.debug(`Burst already running for target ${id}, skipping`);
+      return;
+    }
+
+    logger.info(`Starting burst for target ${id}`, { 
+      court, 
+      date, 
+      startTime,
+      durationSeconds,
+      requestIntervalMs
     });
-  }
 
-  /**
-   * Stop the fighter
-   */
-  stop() {
-    if (!this.running) {
-      logger.warn('Fighter is not running');
-      return;
-    }
-
-    logger.info('Stopping reservation fighter...');
-    this.running = false;
-    this.emit('stopped');
-  }
-
-  /**
-   * Emit final results
-   */
-  emitResults() {
-    if (!this.currentSession) {
-      return;
-    }
-
-    const session = this.currentSession;
-    const duration = Date.now() - session.startTime.getTime();
-
-    const summary = {
-      target: session.target,
-      strategy: session.strategy,
-      duration: duration,
-      results: {
-        total: session.results.total,
-        success: session.results.success,
-        failed: session.results.failed,
-        successRate: session.results.total > 0 
-          ? (session.results.success / session.results.total * 100).toFixed(2) + '%'
-          : '0%'
-      }
+    const burstSession = {
+      targetId: id,
+      startTime: new Date(),
+      attempts: 0,
+      success: false
     };
 
-    logger.info('Fighter session complete', summary);
-    this.emit('complete', summary);
+    this.activeBursts.set(id, burstSession);
+    this.emit('burstStarted', { target });
 
-    this.currentSession = null;
+    try {
+      const endTime = Date.now() + (durationSeconds * 1000);
+      let requestCount = 0;
+
+      // Sequential request loop for the burst duration
+      while (Date.now() < endTime && this.enabled) {
+        requestCount++;
+        burstSession.attempts++;
+
+        try {
+          logger.debug(`Burst ${id}: Request #${requestCount} for court ${court}`);
+          
+          const result = await apiClient.makeReservation({
+            court,
+            date,
+            startTime,
+            duration
+          });
+
+          // Success! We got a reservation
+          logger.info(`SUCCESS! Burst ${id} secured reservation for court ${court}!`, {
+            reservationId: result?.id,
+            attempts: requestCount,
+            date,
+            startTime
+          });
+
+          burstSession.success = true;
+
+          this.emit('reservationSuccess', {
+            target,
+            reservation: result,
+            attempts: requestCount
+          });
+
+          // Remove target after successful reservation
+          await configLoader.removeTarget(id);
+          this.jobGenerator.removeJob(id);
+          logger.info(`Target ${id} removed after successful reservation`);
+
+          break; // Exit burst loop
+        } catch (error) {
+          logger.debug(`Burst ${id}: Request #${requestCount} failed: ${error.message}`);
+          this.emit('requestFailed', { 
+            targetId: id, 
+            requestCount, 
+            error: error.message 
+          });
+        }
+
+        // Wait before next request (unless we're at the end)
+        if (Date.now() + requestIntervalMs < endTime) {
+          await new Promise(resolve => setTimeout(resolve, requestIntervalMs));
+        }
+      }
+
+      // Burst complete
+      const duration = Date.now() - burstSession.startTime.getTime();
+      logger.info(`Burst complete for target ${id}`, {
+        attempts: burstSession.attempts,
+        success: burstSession.success,
+        durationMs: duration
+      });
+
+      this.emit('burstComplete', {
+        target,
+        attempts: burstSession.attempts,
+        success: burstSession.success,
+        duration
+      });
+
+    } catch (error) {
+      logger.error(`Burst failed for target ${id}`, { error: error.message });
+      this.emit('burstError', { target, error });
+    } finally {
+      this.activeBursts.delete(id);
+    }
   }
 
   /**
-   * Enable the fighter (and start it)
+   * Enable the fighter
    * @returns {Promise<void>}
    */
   async enable() {
     await configLoader.setEnabled(true);
     this.enabled = true;
     
+    // Schedule all jobs
+    await this.scheduleAllJobs();
+    
     logger.info('Reservation Fighter enabled');
     this.emit('statusChanged', { enabled: true });
-
-    // Auto-start
-    await this.start();
   }
 
   /**
-   * Disable the fighter (and stop it)
+   * Disable the fighter
    * @returns {Promise<void>}
    */
   async disable() {
     await configLoader.setEnabled(false);
     this.enabled = false;
     
-    // Stop if running
-    if (this.running) {
-      this.stop();
-    }
-    
-    logger.info('Reservation Fighter disabled');
+    // Don't remove jobs, just stop executing them
+    logger.info('Reservation Fighter disabled (jobs remain scheduled)');
     this.emit('statusChanged', { enabled: false });
   }
 
   /**
-   * Update target configuration
-   * @param {Object} updates - Target updates
-   * @returns {Promise<Object>} Updated target
+   * Add a new fighter target
+   * @param {Object} target - Target configuration
+   * @returns {Promise<Object>} Added target
    */
-  async updateTarget(updates) {
-    if (this.running) {
-      throw new Error('Cannot update target while fighter is running');
+  async addTarget(target) {
+    // Validate target
+    const validation = configLoader.validateTarget(target);
+    if (!validation.valid) {
+      throw new Error(`Invalid target: ${validation.errors.join(', ')}`);
     }
 
-    return await configLoader.updateTarget(updates);
+    // Add to config
+    const addedTarget = await configLoader.addTarget(target);
+    
+    // Schedule job if enabled
+    if (this.enabled) {
+      this.jobGenerator.createJob(addedTarget, (t) => this.runBurst(t));
+    }
+
+    logger.info('Fighter target added', { id: addedTarget.id, court: addedTarget.court });
+    this.emit('targetAdded', addedTarget);
+    
+    return addedTarget;
+  }
+
+  /**
+   * Remove a fighter target
+   * @param {string} targetId - Target ID to remove
+   * @returns {Promise<boolean>} True if removed
+   */
+  async removeTarget(targetId) {
+    const removed = await configLoader.removeTarget(targetId);
+    
+    if (removed) {
+      this.jobGenerator.removeJob(targetId);
+      logger.info('Fighter target removed', { id: targetId });
+      this.emit('targetRemoved', { id: targetId });
+    }
+    
+    return removed;
   }
 
   /**
@@ -279,28 +259,54 @@ class ReservationFighter extends EventEmitter {
    * @returns {Promise<Object>} Updated strategy
    */
   async updateStrategy(updates) {
-    if (this.running) {
-      throw new Error('Cannot update strategy while fighter is running');
-    }
-
     return await configLoader.updateStrategy(updates);
   }
 
   /**
-   * Reload configuration
+   * Reload configuration and reschedule jobs
    * @returns {Promise<void>}
    */
   async reload() {
-    if (this.running) {
-      throw new Error('Cannot reload while fighter is running');
-    }
-
     logger.info('Reloading fighter configuration...');
+    
+    // Remove all existing jobs
+    this.jobGenerator.removeAllJobs();
+    
+    // Reload config
     const config = await configLoader.load();
     this.enabled = config.enabled;
     
+    // Reschedule if enabled
+    if (this.enabled) {
+      await this.scheduleAllJobs();
+    }
+    
     logger.info('Configuration reloaded');
     this.emit('reloaded');
+  }
+
+  /**
+   * Clean up expired targets
+   * @returns {Promise<number>} Number of targets cleaned
+   */
+  async cleanupExpired() {
+    const removed = await configLoader.cleanupExpired();
+    
+    // Remove associated jobs
+    const config = configLoader.get();
+    const validIds = new Set(config.fighterTargets.map(t => t.id));
+    
+    this.jobGenerator.getActiveJobIds().forEach(id => {
+      if (!validIds.has(id)) {
+        this.jobGenerator.removeJob(id);
+      }
+    });
+    
+    if (removed > 0) {
+      this.emit('expiredCleaned', { count: removed });
+    }
+    
+    return removed;
   }
 
   /**
@@ -311,14 +317,12 @@ class ReservationFighter extends EventEmitter {
     const config = configLoader.get();
     return {
       enabled: this.enabled,
-      running: this.running,
       initialized: this.initialized,
-      target: config?.target || {},
-      strategy: config?.strategy || {},
-      currentSession: this.currentSession ? {
-        startTime: this.currentSession.startTime,
-        results: this.currentSession.results
-      } : null
+      targetCount: config?.fighterTargets?.length || 0,
+      activeJobCount: this.jobGenerator.getJobCount(),
+      activeBurstCount: this.activeBursts.size,
+      targets: config?.fighterTargets || [],
+      strategy: config?.strategy || {}
     };
   }
 
@@ -327,9 +331,8 @@ class ReservationFighter extends EventEmitter {
    */
   shutdown() {
     logger.info('Shutting down Reservation Fighter...');
-    if (this.running) {
-      this.stop();
-    }
+    this.jobGenerator.removeAllJobs();
+    this.activeBursts.clear();
     this.initialized = false;
     this.emit('shutdown');
   }
