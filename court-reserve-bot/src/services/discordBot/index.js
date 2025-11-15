@@ -116,10 +116,15 @@ class DiscordBot {
    * Handle ready event
    */
   onReady() {
-    // Initialize Discord logging transport
+    // Initialize Discord logging transport for main logger
     const mainLogger = require('../../utils/logger');
     mainLogger.initDiscordTransport(this.client);
     logger.info('Discord logging transport initialized');
+
+    // Initialize Discord logging transport for API logger
+    const apiLogger = require('../../utils/apiLogger');
+    apiLogger.initDiscordTransport(this.client);
+    logger.info('API Discord logging transport initialized');
 
     // Set bot status
     this.client.user.setActivity('court reservations', { type: 'WATCHING' });

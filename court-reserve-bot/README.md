@@ -155,6 +155,8 @@ npm run dev
 - `FIGHTER_ENABLED` - Enable fighter on startup (default: false)
 - `FIGHTER_CONFIG_PATH` - Path to fighter config (default: ./config/fighterConfig.json)
 - `FIGHTER_MAX_CONCURRENT` - Max concurrent requests (default: 50)
+- `FIGHTER_ADVANCE_CHECK_DAYS` - Days before target to start fighting (default: 28)
+- `FIGHTER_CHECK_INTERVAL_SECONDS` - How often to check and fight (default: 60)
 
 #### Logging Settings
 - `LOG_LEVEL` - Logging level: debug, info, warn, error (default: info)

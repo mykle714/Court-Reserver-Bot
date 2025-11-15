@@ -62,7 +62,9 @@ class EnvConfig {
     this.fighter = {
       enabled: process.env.FIGHTER_ENABLED === 'true',
       configPath: process.env.FIGHTER_CONFIG_PATH || './config/fighterConfig.json',
-      maxConcurrent: parseInt(process.env.FIGHTER_MAX_CONCURRENT || '50', 10)
+      maxConcurrent: parseInt(process.env.FIGHTER_MAX_CONCURRENT || '50', 10),
+      advanceCheckDays: parseInt(process.env.FIGHTER_ADVANCE_CHECK_DAYS || '28', 10),
+      checkIntervalSeconds: parseInt(process.env.FIGHTER_CHECK_INTERVAL_SECONDS || '60', 10)
     };
 
     this.reservationChecker = {

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const logger = require('./logger').createServiceLogger('APIClient');
+const logger = require('./apiLogger').createServiceLogger('APIClient');
 const authManager = require('../services/authManager');
 
 /**
