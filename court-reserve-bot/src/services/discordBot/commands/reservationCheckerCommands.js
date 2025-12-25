@@ -167,15 +167,19 @@ class ReservationCheckerCommands {
    * Test API connection and auth token validity
    */
   async testNow(message, args) {
+    console.log('[DEBUG] testNow: Function called');
     const authManager = require('../../authManager');
     const apiClient = require('../../../utils/apiClient');
+    console.log('[DEBUG] testNow: Modules loaded');
     
     const statusMsg = await message.reply('🧪 Testing API connection and auth token...');
     const startTime = Date.now();
+    console.log('[DEBUG] testNow: Status message sent, starting API test');
     
     try {
       // Check if token exists
       const bearerToken = authManager.getToken();
+      console.log('[DEBUG] testNow: Got bearer token:', bearerToken ? 'EXISTS' : 'MISSING');
       if (!bearerToken) {
         const embed = {
           color: 0xff0000,
@@ -201,6 +205,7 @@ class ReservationCheckerCommands {
       }
 
       // Make the actual API call using apiClient (enables logging to Discord)
+      console.log('[DEBUG] testNow: About to call apiClient.customRequest');
       const responseData = await apiClient.customRequest({
         method: 'get',
         url: 'https://backend.courtreserve.com/api/scheduler/member-expanded',
@@ -242,9 +247,13 @@ class ReservationCheckerCommands {
         },
         timeout: 10000
       });
+      console.log('[DEBUG] testNow: API call completed successfully');
+      console.log('[DEBUG] testNow: Response data type:', typeof responseData);
+      console.log('[DEBUG] testNow: Response data keys:', responseData ? Object.keys(responseData).slice(0, 5) : 'null');
 
       const duration = Date.now() - startTime;
       const reservations = responseData?.Data || [];
+      console.log('[DEBUG] testNow: Found', reservations.length, 'reservations');
       
       // Success embed
       const embed = {
@@ -287,8 +296,11 @@ class ReservationCheckerCommands {
       };
 
       await statusMsg.edit({ content: '', embeds: [embed] });
+      console.log('[DEBUG] testNow: Success embed sent to Discord');
       
     } catch (error) {
+      console.log('[DEBUG] testNow: ERROR CAUGHT:', error.message);
+      console.log('[DEBUG] testNow: Error stack:', error.stack);
       const duration = Date.now() - startTime;
       
       // Determine error type
