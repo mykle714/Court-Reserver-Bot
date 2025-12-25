@@ -1,4 +1,4 @@
-# Deployment Guide - Fighter 28-Day Advance Feature
+# Deployment Guide - Fighter 28-Day Advance Featurewheat mini
 
 This guide walks you through deploying the updated fighter configuration to your production server.
 

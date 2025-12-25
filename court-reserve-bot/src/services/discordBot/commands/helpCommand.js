@@ -30,8 +30,8 @@ class HelpCommand {
             '`!wl status` - Show scheduler status',
             '`!wl enable` - Enable scheduler',
             '`!wl disable` - Disable scheduler',
-            '`!wl add <date> <start> <end> <court> <duration>` - Add target',
-            '`!wl remove <id>` - Remove target',
+            '`!wl add YYYY-MM-DD HH:MM HH:MM <duration>` - Add target',
+            '`!wl remove <target_id>` - Remove target',
             '`!wl reload` - Reload configuration',
             '`!wl cleanup` - Remove expired targets'
           ].join('\n')
@@ -43,7 +43,7 @@ class HelpCommand {
             '`!ft list` - List all fighter targets',
             '`!ft enable` - Enable fighter and schedule jobs',
             '`!ft disable` - Disable fighter',
-            '`!ft add <court> <date> <time> <duration>` - Add target',
+            '`!ft add <court> YYYY-MM-DD HH:MM <duration>` - Add target',
             '`!ft remove <target_id>` - Remove target',
             '`!ft strategy <duration_sec> <interval_ms>` - Update strategy',
             '`!ft reload` - Reload configuration'

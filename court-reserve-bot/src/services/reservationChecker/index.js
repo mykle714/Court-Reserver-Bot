@@ -1,10 +1,10 @@
 const EventEmitter = require('events');
 const cron = require('node-cron');
-const axios = require('axios');
 const logger = require('../../utils/logger').createServiceLogger('ReservationChecker');
 const stateManager = require('./stateManager');
 const authManager = require('../authManager');
 const waitlistConfigLoader = require('../waitlistScheduler/configLoader');
+const apiClient = require('../../utils/apiClient');
 
 /**
  * Reservation Checker Service
@@ -126,52 +126,51 @@ class ReservationChecker extends EventEmitter {
         try {
           logger.debug(`Checking date ${dateStr} (${i + 1}/${datesToCheck.length})`);
 
-          // Make API request for this specific date
-          const response = await axios.get(
-            'https://backend.courtreserve.com/api/scheduler/member-expanded',
-            {
-              params: {
-                id: '7031',
-                RequestData: 'SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP/CBlLvnwXLectu6zf+rYsKwBsDiqnDKlI8qAAMCVBaMyUywA0REwK+cgQWdbxmByWD7XkR9N0oOSPmpHEdu8JQXC/+V/QhUQ5cwdWP/UTuk8sP9NweZ1FyTWlWVUjE3fjfobtyPzeWLRdqXidGZy7MJnkxUdgkcC3JYw5QaJFtmR9mgeSBBVZ5LAvbk4hpamBJ0Okbw=',
-                sort: '',
-                group: '',
-                filter: '',
-                jsonData: JSON.stringify({
-                  startDate: checkDate.toISOString(),
-                  orgId: "7031",
-                  TimeZone: "America/Los_Angeles",
-                  Date: checkDate.toUTCString(),
-                  KendoDate: {
-                    Year: checkDate.getFullYear(),
-                    Month: checkDate.getMonth() + 1,
-                    Day: checkDate.getDate()
-                  },
-                  UiCulture: "en-US",
-                  CostTypeId: "88151",
-                  CustomSchedulerId: "17109",
-                  ReservationMinInterval: "60",
-                  SelectedCourtIds: "52667,52668,52669,52670,52671,52672,52673,52674,52675,52676,52677",
-                  SelectedInstructorIds: "",
-                  MemberIds: "6098795",
-                  MemberFamilyId: "",
-                  EmbedCodeId: "",
-                  HideEmbedCodeReservationDetails: "True"
-                })
-              },
-              headers: {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9',
-                'authorization': `Bearer ${bearerToken}`,
-                'origin': 'https://app.courtreserve.com',
-                'referer': 'https://app.courtreserve.com/',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'
-              },
-              timeout: 10000
-            }
-          );
+          // Make API request for this specific date using apiClient (enables logging)
+          const responseData = await apiClient.customRequest({
+            method: 'get',
+            url: 'https://backend.courtreserve.com/api/scheduler/member-expanded',
+            params: {
+              id: '7031',
+              RequestData: 'SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP/CBlLvnwXLectu6zf+rYsKwBsDiqnDKlI8qAAMCVBaMyUywA0REwK+cgQWdbxmByWD7XkR9N0oOSPmpHEdu8JQXC/+V/QhUQ5cwdWP/UTuk8sP9NweZ1FyTWlWVUjE3fjfobtyPzeWLRdqXidGZy7MJnkxUdgkcC3JYw5QaJFtmR9mgeSBBVZ5LAvbk4hpamBJ0Okbw=',
+              sort: '',
+              group: '',
+              filter: '',
+              jsonData: JSON.stringify({
+                startDate: checkDate.toISOString(),
+                orgId: "7031",
+                TimeZone: "America/Los_Angeles",
+                Date: checkDate.toUTCString(),
+                KendoDate: {
+                  Year: checkDate.getFullYear(),
+                  Month: checkDate.getMonth() + 1,
+                  Day: checkDate.getDate()
+                },
+                UiCulture: "en-US",
+                CostTypeId: "88151",
+                CustomSchedulerId: "17109",
+                ReservationMinInterval: "60",
+                SelectedCourtIds: "52667,52668,52669,52670,52671,52672,52673,52674,52675,52676,52677",
+                SelectedInstructorIds: "",
+                MemberIds: "6098795",
+                MemberFamilyId: "",
+                EmbedCodeId: "",
+                HideEmbedCodeReservationDetails: "True"
+              })
+            },
+            headers: {
+              'accept': '*/*',
+              'accept-language': 'en-US,en;q=0.9',
+              'authorization': `Bearer ${bearerToken}`,
+              'origin': 'https://app.courtreserve.com',
+              'referer': 'https://app.courtreserve.com/',
+              'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'
+            },
+            timeout: 10000
+          });
 
           // Extract reservation data
-          const reservations = response.data?.Data || [];
+          const reservations = responseData?.Data || [];
           totalReservations += reservations.length;
           
           // Detect new reservations for this date
