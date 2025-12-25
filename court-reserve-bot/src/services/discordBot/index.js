@@ -51,8 +51,15 @@ class DiscordBot {
       this.commands.set(cmd, handler);
     });
 
+    // Register dashboard commands
+    const dashboardCommands = require('./commands/dashboardCommands');
+    const dashboardHandlers = dashboardCommands.getHandlers();
+    Object.entries(dashboardHandlers).forEach(([cmd, handler]) => {
+      this.commands.set(cmd, handler);
+    });
+
     // Register help commands
-    const helpHandlers = helpCommand.getHandlers();
+    const helpCommands = helpCommand.getHandlers();
     Object.entries(helpHandlers).forEach(([cmd, handler]) => {
       this.commands.set(cmd, handler);
     });
