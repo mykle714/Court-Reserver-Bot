@@ -1,4 +1,4 @@
-cd /home/Court-Reserver-Bot/court-reserve-bot
+cd /home/michael/Court-Reserver-Bot/court-reserve-bot
 git pull origin master
 docker-compose down
 docker-compose build --no-cache

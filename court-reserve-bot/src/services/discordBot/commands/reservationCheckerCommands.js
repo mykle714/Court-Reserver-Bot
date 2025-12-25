@@ -168,7 +168,7 @@ class ReservationCheckerCommands {
    */
   async testNow(message, args) {
     const authManager = require('../../authManager');
-    const axios = require('axios');
+    const apiClient = require('../../../utils/apiClient');
     
     const statusMsg = await message.reply('🧪 Testing API connection and auth token...');
     const startTime = Date.now();
@@ -200,52 +200,51 @@ class ReservationCheckerCommands {
         return;
       }
 
-      // Make the actual API call
-      const response = await axios.get(
-        'https://backend.courtreserve.com/api/scheduler/member-expanded',
-        {
-          params: {
-            id: '7031',
-            RequestData: 'SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP/CBlLvnwXLectu6zf+rYsKwBsDiqnDKlI8qAAMCVBaMyUywA0REwK+cgQWdbxmByWD7XkR9N0oOSPmpHEdu8JQXC/+V/QhUQ5cwdWP/UTuk8sP9NweZ1FyTWlWVUjE3fjfobtyPzeWLRdqXidGZy7MJnkxUdgkcC3JYw5QaJFtmR9mgeSBBVZ5LAvbk4hpamBJ0Okbw=',
-            sort: '',
-            group: '',
-            filter: '',
-            jsonData: JSON.stringify({
-              startDate: new Date().toISOString(),
-              orgId: "7031",
-              TimeZone: "America/Los_Angeles",
-              Date: new Date().toUTCString(),
-              KendoDate: {
-                Year: new Date().getFullYear(),
-                Month: new Date().getMonth() + 1,
-                Day: new Date().getDate()
-              },
-              UiCulture: "en-US",
-              CostTypeId: "88151",
-              CustomSchedulerId: "17109",
-              ReservationMinInterval: "60",
-              SelectedCourtIds: "52667,52668,52669,52670,52671,52672,52673,52674,52675,52676,52677",
-              SelectedInstructorIds: "",
-              MemberIds: "6098795",
-              MemberFamilyId: "",
-              EmbedCodeId: "",
-              HideEmbedCodeReservationDetails: "True"
-            })
-          },
-          headers: {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9',
-            'authorization': `Bearer ${bearerToken}`,
-            'origin': 'https://app.courtreserve.com',
-            'referer': 'https://app.courtreserve.com/',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'
-          },
-          timeout: 10000
-        }
-      );
+      // Make the actual API call using apiClient (enables logging to Discord)
+      const responseData = await apiClient.customRequest({
+        method: 'get',
+        url: 'https://backend.courtreserve.com/api/scheduler/member-expanded',
+        params: {
+          id: '7031',
+          RequestData: 'SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP/CBlLvnwXLectu6zf+rYsKwBsDiqnDKlI8qAAMCVBaMyUywA0REwK+cgQWdbxmByWD7XkR9N0oOSPmpHEdu8JQXC/+V/QhUQ5cwdWP/UTuk8sP9NweZ1FyTWlWVUjE3fjfobtyPzeWLRdqXidGZy7MJnkxUdgkcC3JYw5QaJFtmR9mgeSBBVZ5LAvbk4hpamBJ0Okbw=',
+          sort: '',
+          group: '',
+          filter: '',
+          jsonData: JSON.stringify({
+            startDate: new Date().toISOString(),
+            orgId: "7031",
+            TimeZone: "America/Los_Angeles",
+            Date: new Date().toUTCString(),
+            KendoDate: {
+              Year: new Date().getFullYear(),
+              Month: new Date().getMonth() + 1,
+              Day: new Date().getDate()
+            },
+            UiCulture: "en-US",
+            CostTypeId: "88151",
+            CustomSchedulerId: "17109",
+            ReservationMinInterval: "60",
+            SelectedCourtIds: "52667,52668,52669,52670,52671,52672,52673,52674,52675,52676,52677",
+            SelectedInstructorIds: "",
+            MemberIds: "6098795",
+            MemberFamilyId: "",
+            EmbedCodeId: "",
+            HideEmbedCodeReservationDetails: "True"
+          })
+        },
+        headers: {
+          'accept': '*/*',
+          'accept-language': 'en-US,en;q=0.9',
+          'authorization': `Bearer ${bearerToken}`,
+          'origin': 'https://app.courtreserve.com',
+          'referer': 'https://app.courtreserve.com/',
+          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0'
+        },
+        timeout: 10000
+      });
 
       const duration = Date.now() - startTime;
-      const reservations = response.data?.Data || [];
+      const reservations = responseData?.Data || [];
       
       // Success embed
       const embed = {
@@ -260,7 +259,7 @@ class ReservationCheckerCommands {
           },
           {
             name: '📡 API Response',
-            value: `Status: ${response.status} ${response.statusText}`,
+            value: 'Status: 200 OK',
             inline: true
           },
           {
