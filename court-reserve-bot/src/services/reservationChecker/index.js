@@ -2,6 +2,7 @@ const EventEmitter = require('events');
 const cron = require('node-cron');
 const logger = require('../../utils/logger').createServiceLogger('ReservationChecker');
 const stateManager = require('./stateManager');
+const configLoader = require('./configLoader');
 const authManager = require('../authManager');
 const waitlistConfigLoader = require('../waitlistScheduler/configLoader');
 const apiClient = require('../../utils/apiClient');
@@ -29,9 +30,10 @@ class ReservationChecker extends EventEmitter {
     try {
       logger.info('Initializing Reservation Checker...');
       
-      // Load configuration from environment
-      this.enabled = process.env.RESERVATION_CHECKER_ENABLED === 'true';
-      this.checkIntervalMinutes = parseInt(process.env.RESERVATION_CHECKER_INTERVAL || '5', 10);
+      // Load configuration from config file (creates default from env vars if not exists)
+      const config = await configLoader.load();
+      this.enabled = config.enabled;
+      this.checkIntervalMinutes = config.checkIntervalMinutes;
       this.stateFilePath = process.env.RESERVATION_CHECKER_STATE_PATH || this.stateFilePath;
 
       // Initialize state manager
@@ -277,7 +279,7 @@ class ReservationChecker extends EventEmitter {
    */
   async enable() {
     this.enabled = true;
-    await this.updateEnvFile('RESERVATION_CHECKER_ENABLED', 'true');
+    await configLoader.setEnabled(true);
     this.startCronJob();
     
     logger.info('Reservation Checker enabled');
@@ -290,7 +292,7 @@ class ReservationChecker extends EventEmitter {
    */
   async disable() {
     this.enabled = false;
-    await this.updateEnvFile('RESERVATION_CHECKER_ENABLED', 'false');
+    await configLoader.setEnabled(false);
     this.stopCronJob();
     
     logger.info('Reservation Checker disabled');
@@ -308,7 +310,7 @@ class ReservationChecker extends EventEmitter {
     }
 
     this.checkIntervalMinutes = minutes;
-    await this.updateEnvFile('RESERVATION_CHECKER_INTERVAL', minutes.toString());
+    await configLoader.setInterval(minutes);
     
     // Restart cron job with new interval
     if (this.enabled) {
@@ -320,76 +322,34 @@ class ReservationChecker extends EventEmitter {
   }
 
   /**
-   * Reload configuration from environment
+   * Reload configuration from config file
    * @returns {Promise<void>}
    */
   async reload() {
     logger.info('Reloading configuration...');
     
-    // Re-read environment variables
-    const fs = require('fs').promises;
-    const path = require('path');
-    const envPath = path.join(process.cwd(), '.env');
-    
     try {
-      const envContent = await fs.readFile(envPath, 'utf-8');
+      // Reload configuration from file
+      const config = await configLoader.reload();
       
-      // Extract values
-      const enabledMatch = envContent.match(/RESERVATION_CHECKER_ENABLED=(.+)/);
-      const intervalMatch = envContent.match(/RESERVATION_CHECKER_INTERVAL=(.+)/);
+      const wasEnabled = this.enabled;
+      this.enabled = config.enabled;
+      this.checkIntervalMinutes = config.checkIntervalMinutes;
       
-      if (enabledMatch) {
-        const wasEnabled = this.enabled;
-        this.enabled = enabledMatch[1].trim() === 'true';
-        
-        if (this.enabled && !wasEnabled) {
-          this.startCronJob();
-        } else if (!this.enabled && wasEnabled) {
-          this.stopCronJob();
-        }
-      }
-      
-      if (intervalMatch) {
-        this.checkIntervalMinutes = parseInt(intervalMatch[1].trim(), 10);
-        if (this.enabled) {
-          this.startCronJob();
-        }
+      // Restart cron job if settings changed
+      if (this.enabled && !wasEnabled) {
+        this.startCronJob();
+      } else if (!this.enabled && wasEnabled) {
+        this.stopCronJob();
+      } else if (this.enabled) {
+        // Restart to apply new interval
+        this.startCronJob();
       }
       
       logger.info('Configuration reloaded');
       this.emit('reloaded');
     } catch (error) {
       logger.error('Failed to reload configuration', { error: error.message });
-      throw error;
-    }
-  }
-
-  /**
-   * Update environment file
-   * @param {string} key - Environment variable key
-   * @param {string} value - New value
-   * @returns {Promise<void>}
-   */
-  async updateEnvFile(key, value) {
-    const fs = require('fs').promises;
-    const path = require('path');
-    const envPath = path.join(process.cwd(), '.env');
-    
-    try {
-      let envContent = await fs.readFile(envPath, 'utf-8');
-      
-      const regex = new RegExp(`^${key}=.*$`, 'm');
-      
-      if (regex.test(envContent)) {
-        envContent = envContent.replace(regex, `${key}=${value}`);
-      } else {
-        envContent += `\n${key}=${value}\n`;
-      }
-      
-      await fs.writeFile(envPath, envContent, 'utf-8');
-      logger.info(`Updated ${key} in .env file`);
-    } catch (error) {
-      logger.error('Failed to update .env file', { error: error.message });
       throw error;
     }
   }
