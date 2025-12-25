@@ -60,7 +60,7 @@ class DiscordBot {
 
     // Register help commands
     const helpCommands = helpCommand.getHandlers();
-    Object.entries(helpHandlers).forEach(([cmd, handler]) => {
+    Object.entries(helpCommands).forEach(([cmd, handler]) => {
       this.commands.set(cmd, handler);
     });
 
