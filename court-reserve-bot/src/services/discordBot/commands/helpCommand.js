@@ -72,6 +72,7 @@ class HelpCommand {
         {
           name: '🔧 General Commands',
           value: [
+            '`!db` - Show comprehensive dashboard',
             '`!status` - Show status of all services',
             '`!help` - Show this help message'
           ].join('\n')
