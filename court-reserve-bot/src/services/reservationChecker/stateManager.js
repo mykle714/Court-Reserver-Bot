@@ -168,6 +168,31 @@ class StateManager {
   }
 
   /**
+   * Clean up past dates from state (remove dates before today)
+   * @returns {Promise<number>} Number of dates removed
+   */
+  async cleanupPastDates() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    let removedCount = 0;
+    for (const date of Object.keys(this.reservationsByDate)) {
+      if (date < todayStr) {
+        delete this.reservationsByDate[date];
+        removedCount++;
+      }
+    }
+
+    if (removedCount > 0) {
+      await this.saveState();
+      logger.info(`Cleaned up ${removedCount} past date(s) from state`);
+    }
+
+    return removedCount;
+  }
+
+  /**
    * Clean up old dates from state (remove dates older than N days)
    * @param {number} daysToKeep - Number of days to keep (default: 30)
    * @returns {Promise<number>} Number of dates removed

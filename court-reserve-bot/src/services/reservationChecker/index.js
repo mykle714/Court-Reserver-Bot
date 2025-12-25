@@ -94,6 +94,9 @@ class ReservationChecker extends EventEmitter {
       logger.info('Checking for new reservations...');
       this.lastCheckTime = new Date();
 
+      // Clean up past dates from state
+      await stateManager.cleanupPastDates();
+
       // Get bearer token from auth manager
       const bearerToken = authManager.getToken();
       if (!bearerToken) {
