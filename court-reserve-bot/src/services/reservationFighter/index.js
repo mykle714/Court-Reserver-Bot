@@ -310,6 +310,31 @@ class ReservationFighter extends EventEmitter {
   }
 
   /**
+   * Clean up old targets (less than 28 days in the future)
+   * @returns {Promise<number>} Number of targets cleaned
+   */
+  async cleanupOldTargets() {
+    const removed = await configLoader.cleanupOldTargets();
+    
+    // Remove associated jobs
+    const config = configLoader.get();
+    const validIds = new Set(config.fighterTargets.map(t => t.id));
+    
+    this.jobGenerator.getActiveJobIds().forEach(id => {
+      if (!validIds.has(id)) {
+        this.jobGenerator.removeJob(id);
+      }
+    });
+    
+    if (removed > 0) {
+      logger.info(`Cleaned up ${removed} old fighter targets and their jobs`);
+      this.emit('oldTargetsCleaned', { count: removed });
+    }
+    
+    return removed;
+  }
+
+  /**
    * Get current status
    * @returns {Object} Status information
    */

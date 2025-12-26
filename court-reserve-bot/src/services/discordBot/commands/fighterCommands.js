@@ -18,7 +18,8 @@ class FighterCommands {
       'ft add': this.add.bind(this),
       'ft remove': this.remove.bind(this),
       'ft strategy': this.updateStrategy.bind(this),
-      'ft reload': this.reload.bind(this)
+      'ft reload': this.reload.bind(this),
+      'ft cleanup': this.cleanup.bind(this)
     };
   }
 
@@ -283,6 +284,24 @@ class FighterCommands {
       await message.reply('✅ Fighter configuration reloaded');
     } catch (error) {
       logger.error('Error reloading fighter config', { error: error.message });
+      await message.reply(`❌ Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Clean up old targets (less than 28 days in the future)
+   */
+  async cleanup(message, args) {
+    try {
+      const removed = await reservationFighter.cleanupOldTargets();
+      
+      if (removed > 0) {
+        await message.reply(`✅ Cleaned up **${removed}** old target${removed > 1 ? 's' : ''} (less than 28 days away)`);
+      } else {
+        await message.reply('ℹ️ No old targets to clean up. All targets are more than 28 days in the future.');
+      }
+    } catch (error) {
+      logger.error('Error cleaning up old targets', { error: error.message });
       await message.reply(`❌ Error: ${error.message}`);
     }
   }

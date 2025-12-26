@@ -173,6 +173,36 @@ class ConfigLoader {
   }
 
   /**
+   * Remove old targets (less than 28 days in the future)
+   * @returns {Promise<number>} Number of targets removed
+   */
+  async cleanupOldTargets() {
+    if (!this.config) {
+      await this.load();
+    }
+
+    const now = new Date();
+    const cutoffDate = new Date(now);
+    cutoffDate.setDate(cutoffDate.getDate() + 28); // 28 days from now
+
+    const initialLength = this.config.fighterTargets.length;
+
+    this.config.fighterTargets = this.config.fighterTargets.filter(target => {
+      const targetDate = new Date(target.date);
+      return targetDate >= cutoffDate;
+    });
+
+    const removed = initialLength - this.config.fighterTargets.length;
+    
+    if (removed > 0) {
+      await this.save(this.config);
+      logger.info(`Cleaned up ${removed} old fighter targets (less than 28 days away)`);
+    }
+
+    return removed;
+  }
+
+  /**
    * Update strategy configuration
    * @param {Object} updates - Partial strategy updates
    * @returns {Promise<Object>} Updated strategy

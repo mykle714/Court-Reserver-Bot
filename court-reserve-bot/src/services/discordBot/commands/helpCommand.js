@@ -45,6 +45,7 @@ class HelpCommand {
             '`!ft disable` - Disable fighter',
             '`!ft add <court> YYYY-MM-DD HH:MM <duration>` - Add target',
             '`!ft remove <target_id>` - Remove target',
+            '`!ft cleanup` - Remove targets less than 28 days away',
             '`!ft strategy <duration_sec> <interval_ms>` - Update strategy',
             '`!ft reload` - Reload configuration'
           ].join('\n')
