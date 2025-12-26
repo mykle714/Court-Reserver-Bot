@@ -53,9 +53,13 @@ class WaitlistCommands {
 
       // Add target list if any
       if (status.targets && status.targets.length > 0) {
-        const targetList = status.targets.map(t => 
-          `**${t.id}**: ${t.date} (${t.timeRange.start}-${t.timeRange.end}) - Courts 52667-52677`
-        ).join('\n');
+        const targetList = status.targets.map(t => {
+          // Handle both old format (timeRange) and new format (startTime)
+          const timeInfo = t.startTime 
+            ? `at ${t.startTime} for ${t.duration}min`
+            : `(${t.timeRange?.start}-${t.timeRange?.end})`;
+          return `**${t.id}**: ${t.date} ${timeInfo} - Courts 52667-52677`;
+        }).join('\n');
         
         embed.fields.push({
           name: 'Targets',
@@ -98,27 +102,27 @@ class WaitlistCommands {
 
   /**
    * Add waitlist target
-   * Usage: !wl add <date> <start> <end> <duration>
-   * Example: !wl add 2025-11-15 18:00 20:00 60
+   * Usage: !wl add <date> <start> <duration>
+   * Example: !wl add 2025-11-15 18:00 60
    * Note: Will check all courts (52667-52677) automatically
    */
   async add(message, args) {
     try {
-      if (args.length < 4) {
-        await message.reply('❌ Usage: `!wl add <date> <start> <end> <duration>`\nExample: `!wl add 2025-11-15 18:00 20:00 60`\n\nNote: Will automatically check all courts (52667-52677)');
+      if (args.length < 3) {
+        await message.reply('❌ Usage: `!wl add <date> <start> <duration>`\nExample: `!wl add 2025-11-15 18:00 60`\n\nNote: Will automatically check all courts (52667-52677)');
         return;
       }
 
-      const [date, start, end, duration] = args;
+      const [date, startTime, duration] = args;
       
       const target = {
         date,
-        timeRange: { start, end },
+        startTime,
         duration: parseInt(duration, 10)
       };
 
       const added = await waitlistScheduler.addTarget(target);
-      await message.reply(`✅ Waitlist target added: **${added.id}**\nDate: ${date} (${start}-${end})\nWill check all courts: 52667-52677`);
+      await message.reply(`✅ Waitlist target added: **${added.id}**\nDate: ${date} at ${startTime} for ${duration} minutes\nWill check all courts: 52667-52677`);
     } catch (error) {
       logger.error('Error adding waitlist target', { error: error.message });
       await message.reply(`❌ Error: ${error.message}`);

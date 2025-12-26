@@ -30,7 +30,7 @@ class HelpCommand {
             '`!wl status` - Show scheduler status',
             '`!wl enable` - Enable scheduler',
             '`!wl disable` - Disable scheduler',
-            '`!wl add YYYY-MM-DD HH:MM HH:MM <duration>` - Add target',
+            '`!wl add YYYY-MM-DD HH:MM <duration>` - Add target (e.g., `!wl add 2025-12-31 18:00 60`)',
             '`!wl remove <target_id>` - Remove target',
             '`!wl reload` - Reload configuration',
             '`!wl cleanup` - Remove expired targets'

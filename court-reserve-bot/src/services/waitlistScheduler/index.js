@@ -75,13 +75,13 @@ class WaitlistScheduler extends EventEmitter {
       return;
     }
 
-    const { id, date, timeRange, duration } = target;
+    const { id, date, startTime, duration } = target;
     const config = require('../../config/envConfig');
     const courtIdStart = config.scheduler.courtIdStart;
     const courtIdEnd = config.scheduler.courtIdEnd;
     const delayMs = config.scheduler.courtCheckDelayMs;
 
-    logger.info(`Checking availability for target ${id}`, { date, timeRange, courts: `${courtIdStart}-${courtIdEnd}` });
+    logger.info(`Checking availability for target ${id}`, { date, startTime, duration, courts: `${courtIdStart}-${courtIdEnd}` });
 
     const successfulReservations = [];
     const failedCourts = [];
@@ -90,9 +90,6 @@ class WaitlistScheduler extends EventEmitter {
       // Check all courts from courtIdStart to courtIdEnd
       for (let courtId = courtIdStart; courtId <= courtIdEnd; courtId++) {
         try {
-          // Parse time range and try the start of the time range
-          const startTime = timeRange.start;
-          
           logger.debug(`Checking court ${courtId} for target ${id}`, { date, startTime });
           
           const available = await this.checkSlotAvailability(courtId.toString(), date, startTime, duration);

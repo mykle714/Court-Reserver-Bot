@@ -185,8 +185,8 @@ class ConfigLoader {
       }
     }
 
-    if (!target.timeRange || !target.timeRange.start || !target.timeRange.end) {
-      errors.push('timeRange with start and end is required');
+    if (!target.startTime) {
+      errors.push('startTime is required');
     }
 
     if (!target.duration || target.duration <= 0) {
