@@ -39,6 +39,7 @@ class ConfigLoader {
   async createDefault() {
     const defaultConfig = {
       enabled: false,
+      requestData: "",
       waitlistTargets: []
     };
 
@@ -93,6 +94,21 @@ class ConfigLoader {
     this.config.enabled = enabled;
     await this.save(this.config);
     logger.info(`Waitlist scheduler ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Update request data
+   * @param {string} requestData - Encrypted authentication data
+   * @returns {Promise<void>}
+   */
+  async setRequestData(requestData) {
+    if (!this.config) {
+      await this.load();
+    }
+    
+    this.config.requestData = requestData;
+    await this.save(this.config);
+    logger.info('Waitlist request data updated');
   }
 
   /**

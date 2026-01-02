@@ -1,0 +1,13 @@
+curl 'https://backend.courtreserve.com/api/scheduler/member-expanded?id=7031&RequestData=SVtXlVuPvpnXO5nnRKOxzcTcYY9TzotlauPP/CBlLvnwXLectu6zf+rYsKwBsDiqnDKlI8qAAMAXe+bk4tZqibMyen+DhLs14W5viSS4tqHH/aaA4tYBOmEMEM3cYm0pn47VVWuOp5mTshKHjWtFdHwID4NzRe37baCVQxgYHMti9RkLf0Z2z8a+0W3FXt3kMVLeL5d3r5PCXXW1J0pQ8DdI12mrOyNDwaNzEITGV+pTCouUhZPfi49FTQ6TRjuh&sort=&group=&filter=&jsonData=%7B%22startDate%22%3A%222026-01-29T23%3A37%3A45.000Z%22%2C%22orgId%22%3A%227031%22%2C%22TimeZone%22%3A%22America%2FLos_Angeles%22%2C%22Date%22%3A%22Thu%2C%2029%20Jan%202026%2023%3A37%3A45%20GMT%22%2C%22KendoDate%22%3A%7B%22Year%22%3A2026%2C%22Month%22%3A1%2C%22Day%22%3A29%7D%2C%22UiCulture%22%3A%22en-US%22%2C%22CostTypeId%22%3A%2288151%22%2C%22CustomSchedulerId%22%3A%2217109%22%2C%22ReservationMinInterval%22%3A%2260%22%2C%22SelectedCourtIds%22%3A%2252667%2C52668%2C52669%2C52670%2C52671%2C52672%2C52673%2C52674%2C52675%2C52676%2C52677%22%2C%22SelectedInstructorIds%22%3A%22%22%2C%22MemberIds%22%3A%226098795%22%2C%22MemberFamilyId%22%3A%22%22%2C%22EmbedCodeId%22%3A%22%22%2C%22HideEmbedCodeReservationDetails%22%3A%22True%22%7D' \
+-H 'Host: backend.courtreserve.com' \
+-H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IkZDQjYyMUQ3OUJBRTY2RkUxMDJENjVEMzU0MURGNDNFIiwidHlwIjoiSldUIn0.eyJleHAiOjE3NjczMTU1NjYsImlzcyI6Imh0dHBzOi8vYmFja2VuZC5jb3VydHJlc2VydmUuY29tLyIsImF1ZCI6ImNvdXJ0UmVzZXJ2ZUFwaSJ9.pWOam_dZFN7Mj33ir0yJY1FXJ-i5wui7LTXfFIteBX8BCPbdcj5YqBK-7zliWnbKptXLOqB7rdonjwBAWSaN2RR9IkMAwui8k2nGunIUvYJUuAwOi1Op2RJWnmQotOERjOlEfEmdMGPdZhmOf1TtoCdSffeEwK1rG7QMYcNHwA2DA3-5fSIBcWyHGt5U0mhpLPUyAG6RPtk7EGMJjEK5LIE98oUhAdwrtJCsdfU-RluL5xOs_Bhy37L-euBm5knmKKlDVyba5vLEQ4qLc_2f2I5ylFStODixh7cMaQaVCnomijyba-xyMDx7Ego5XSwNHaEIx1Ccy9QTs7G6_ld7WQ' \
+-H 'Sec-Fetch-Site: same-site' \
+-H 'Accept-Language: en-US,en;q=0.9' \
+-H 'Sec-Fetch-Mode: cors' \
+-H 'Accept: /' \
+-H 'Origin: https://mobileapp.courtreserve.com' \
+-H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' \
+-H 'Connection: keep-alive' \
+-H 'Referer: https://mobileapp.courtreserve.com/' \
+-H 'Sec-Fetch-Dest: empty' \
+--proxy http://localhost:9495

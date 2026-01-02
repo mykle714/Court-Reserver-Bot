@@ -65,7 +65,7 @@ class WaitlistScheduler extends EventEmitter {
 
   /**
    * Check availability and attempt reservation for a target
-   * Checks all 11 courts (52667-52677) with staggered delays
+   * Uses getMemberExpandedScheduler to check for conflicts
    * @param {Object} target - Waitlist target
    * @returns {Promise<void>}
    */
@@ -76,91 +76,67 @@ class WaitlistScheduler extends EventEmitter {
     }
 
     const { id, date, startTime, duration } = target;
-    const config = require('../../config/envConfig');
-    const courtIdStart = config.scheduler.courtIdStart;
-    const courtIdEnd = config.scheduler.courtIdEnd;
-    const delayMs = config.scheduler.courtCheckDelayMs;
+    const waitlistConfig = configLoader.get();
+    const requestData = waitlistConfig.requestData;
 
-    logger.info(`Checking availability for target ${id}`, { date, startTime, duration, courts: `${courtIdStart}-${courtIdEnd}` });
+    if (!requestData) {
+      logger.error('Missing requestData in configuration', { targetId: id });
+      return;
+    }
 
     const successfulReservations = [];
     const failedCourts = [];
 
     try {
-      // Check all courts from courtIdStart to courtIdEnd
-      for (let courtId = courtIdStart; courtId <= courtIdEnd; courtId++) {
+      // Get all existing reservations for the date
+      const schedulerData = await apiClient.getMemberExpandedScheduler({
+        requestData,
+        startDate: new Date(date)
+      });
+
+      // Find which courts are available (no conflicts)
+      const availableCourts = this.findAvailableCourts(
+        schedulerData,
+        date,
+        startTime,
+        duration
+      );
+
+      // Attempt reservation on each available court
+      for (const courtId of availableCourts) {
         try {
-          logger.debug(`Checking court ${courtId} for target ${id}`, { date, startTime });
+          logger.info(`Attempting reservation on court ${courtId}`, { date, startTime });
           
-          const available = await this.checkSlotAvailability(courtId.toString(), date, startTime, duration);
-          
-          if (available) {
-            logger.info(`Slot available on court ${courtId}! Attempting reservation`, { date, startTime });
-            
-            try {
-              const result = await apiClient.makeReservation({
-                court: courtId.toString(),
-                date,
-                startTime,
-                duration
-              });
-
-              logger.info(`Reservation successful on court ${courtId}!`, { 
-                reservationId: result?.id,
-                date,
-                startTime
-              });
-
-              successfulReservations.push({
-                courtId,
-                result
-              });
-
-              // Emit success event for each successful reservation
-              this.emit('reservationSuccess', {
-                target,
-                courtId,
-                reservation: result
-              });
-            } catch (reservationError) {
-              logger.error(`Failed to reserve court ${courtId} despite availability`, {
-                error: reservationError.message,
-                courtId,
-                date,
-                startTime
-              });
-              failedCourts.push({ courtId, reason: reservationError.message });
-            }
-          } else {
-            logger.debug(`Court ${courtId} not available for target ${id}`);
-          }
-
-          // Add delay between court checks (except after the last court)
-          if (courtId < courtIdEnd) {
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-          }
-        } catch (courtCheckError) {
-          logger.warn(`Error checking court ${courtId}`, {
-            error: courtCheckError.message,
-            courtId,
-            targetId: id
+          const result = await apiClient.makeReservation({
+            court: courtId,
+            date,
+            startTime,
+            duration
           });
-          failedCourts.push({ courtId, reason: courtCheckError.message });
-          
-          // Continue to next court even if this one errored
-          if (courtId < courtIdEnd) {
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-          }
-        }
-      }
 
-      // Log summary
-      if (successfulReservations.length > 0) {
-        logger.info(`Completed check for target ${id}: ${successfulReservations.length} reservations made`, {
-          courts: successfulReservations.map(r => r.courtId)
-        });
-      } else {
-        logger.debug(`No availability found for target ${id} across all courts`);
+          logger.info(`Reservation successful on court ${courtId}!`, {
+            reservationId: result?.id,
+            date,
+            startTime
+          });
+
+          successfulReservations.push({ courtId, result });
+
+          this.emit('reservationSuccess', {
+            target,
+            courtId,
+            reservation: result
+          });
+          
+        } catch (reservationError) {
+          logger.error(`Failed to reserve court ${courtId}`, {
+            error: reservationError.message,
+            courtId,
+            date,
+            startTime
+          });
+          failedCourts.push({ courtId, reason: reservationError.message });
+        }
       }
 
       // If we got at least one successful reservation, remove the target
@@ -171,16 +147,111 @@ class WaitlistScheduler extends EventEmitter {
       }
 
     } catch (error) {
-      logger.error(`Failed to check/reserve for target ${id}`, { 
+      logger.error(`Failed to check/reserve for target ${id}`, {
         error: error.message,
         date
       });
 
-      this.emit('reservationError', {
-        target,
-        error
-      });
+      this.emit('reservationError', { target, error });
     }
+  }
+
+  /**
+   * Find available courts by checking for time conflicts
+   * @param {Object} schedulerData - Response from getMemberExpandedScheduler
+   * @param {string} date - Target date (YYYY-MM-DD)
+   * @param {string} startTime - Desired start time (HH:MM)
+   * @param {number} duration - Duration in minutes
+   * @returns {Array<string>} Array of available court IDs
+   */
+  findAvailableCourts(schedulerData, date, startTime, duration) {
+    const config = require('../../config/envConfig');
+    const courtIdStart = config.scheduler.courtIdStart;
+    const courtIdEnd = config.scheduler.courtIdEnd;
+    
+    const availableCourts = [];
+    
+    // Parse our desired time window
+    const desiredStart = this._parseDateTime(date, startTime);
+    const desiredEnd = new Date(desiredStart.getTime() + duration * 60000);
+    
+    // Check each court for conflicts
+    for (let courtId = courtIdStart; courtId <= courtIdEnd; courtId++) {
+      const hasConflict = this._hasTimeConflict(
+        schedulerData,
+        courtId.toString(),
+        desiredStart,
+        desiredEnd
+      );
+      
+      if (!hasConflict) {
+        availableCourts.push(courtId.toString());
+      }
+    }
+    
+    return availableCourts;
+  }
+
+  /**
+   * Helper: Parse date and time into Date object
+   * @param {string} date - Date string (YYYY-MM-DD)
+   * @param {string} time - Time string (HH:MM)
+   * @returns {Date} Date object
+   */
+  _parseDateTime(date, time) {
+    const [hours, minutes] = time.split(':');
+    const dateObj = new Date(date);
+    dateObj.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    return dateObj;
+  }
+
+  /**
+   * Helper: Check if there's a time conflict for a specific court
+   * @param {Object} schedulerData - Scheduler response data
+   * @param {string} courtId - Court ID to check
+   * @param {Date} desiredStart - Desired start time
+   * @param {Date} desiredEnd - Desired end time
+   * @returns {boolean} True if conflict exists
+   */
+  _hasTimeConflict(schedulerData, courtId, desiredStart, desiredEnd) {
+    // Parse schedulerData to find reservations for this court
+    const reservations = this._getCourtReservations(schedulerData, courtId);
+    
+    for (const reservation of reservations) {
+      const resStart = new Date(reservation.startTime);
+      const resEnd = new Date(reservation.endTime);
+      
+      // Check for overlap: (StartA < EndB) and (EndA > StartB)
+      if (desiredStart < resEnd && desiredEnd > resStart) {
+        return true; // Conflict found
+      }
+    }
+    
+    return false; // No conflicts
+  }
+
+  /**
+   * Helper: Extract reservations for a specific court from scheduler data
+   * @param {Object} schedulerData - Scheduler response data
+   * @param {string} courtId - Court ID
+   * @returns {Array} Array of reservations for the court with startTime and endTime
+   */
+  _getCourtReservations(schedulerData, courtId) {
+    // Extract data array from API response
+    if (!schedulerData || !schedulerData.Data) {
+      return [];
+    }
+    
+    // Filter for actual reservations (ReservationId > 0) on the specified court
+    return schedulerData.Data
+      .filter(item => 
+        item.ReservationId > 0 &&  // Only actual reservations, not empty slots
+        item.CourtId.toString() === courtId.toString()  // Match court ID
+      )
+      .map(item => ({
+        startTime: item.Start,  // UTC format: "2025-11-13T14:00:00Z"
+        endTime: item.End       // UTC format: "2025-11-13T15:00:00Z"
+      }));
   }
 
   /**

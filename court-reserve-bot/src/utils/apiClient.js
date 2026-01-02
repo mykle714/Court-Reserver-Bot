@@ -200,6 +200,86 @@ class APIClient {
       throw error;
     }
   }
+
+  /**
+   * Helper function to generate date formats from a Date object
+   * @param {Date} date - JavaScript Date object
+   * @returns {Object} Object containing various date formats
+   */
+  _generateDateFormats(date) {
+    return {
+      isoString: date.toISOString(),
+      gmtString: date.toUTCString(),
+      kendoDate: {
+        Year: date.getFullYear(),
+        Month: date.getMonth() + 1, // JavaScript months are 0-indexed
+        Day: date.getDate()
+      }
+    };
+  }
+
+  /**
+   * Get member expanded scheduler data
+   * @param {Object} params - Request parameters
+   * @param {string} params.requestData - Encrypted authentication data
+   * @param {Date|string} params.startDate - Start date (Date object or ISO string)
+   * @returns {Promise<Object>} Scheduler response data
+   */
+  async getMemberExpandedScheduler({ requestData, startDate }) {
+    try {
+      // Convert startDate to Date object if it's a string
+      const dateObj = typeof startDate === 'string' ? new Date(startDate) : startDate;
+      
+      // Generate date formats
+      const dateFormats = this._generateDateFormats(dateObj);
+
+      // Build jsonData with constant values and generated dates
+      const jsonData = {
+        startDate: dateFormats.isoString,
+        orgId: "7031",
+        TimeZone: "America/Los_Angeles",
+        Date: dateFormats.gmtString,
+        KendoDate: dateFormats.kendoDate,
+        UiCulture: "en-US",
+        CostTypeId: "88151",
+        CustomSchedulerId: "17109",
+        ReservationMinInterval: "60",
+        SelectedCourtIds: "52667,52668,52669,52670,52671,52672,52673,52674,52675,52676,52677",
+        SelectedInstructorIds: "",
+        MemberIds: "6098795",
+        MemberFamilyId: "",
+        EmbedCodeId: "",
+        HideEmbedCodeReservationDetails: "True"
+      };
+
+      // Build query parameters
+      const params = {
+        id: "7031",
+        RequestData: requestData,
+        sort: "",
+        group: "",
+        filter: "",
+        jsonData: JSON.stringify(jsonData)
+      };
+
+      logger.info('Getting member expanded scheduler', { 
+        startDate: dateFormats.isoString,
+        orgId: jsonData.orgId 
+      });
+
+      // Make GET request
+      const response = await this.client.get('/api/scheduler/member-expanded', { params });
+      
+      logger.info('Successfully retrieved scheduler data');
+      return response.data;
+    } catch (error) {
+      logger.error('Failed to get member expanded scheduler', { 
+        error: error.message,
+        status: error.response?.status 
+      });
+      throw error;
+    }
+  }
 }
 
 module.exports = new APIClient();
