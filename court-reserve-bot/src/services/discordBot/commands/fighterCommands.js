@@ -29,6 +29,7 @@ class FighterCommands {
   async status(message, args) {
     try {
       const status = reservationFighter.getStatus();
+      const config = require('../../../config/envConfig');
       
       const embed = {
         color: status.enabled ? 0x00ff00 : 0xff0000,
@@ -62,6 +63,21 @@ class FighterCommands {
           {
             name: 'Request Interval',
             value: `${status.strategy.requestIntervalMs || 100}ms`,
+            inline: true
+          },
+          {
+            name: '⚙️ Check Interval',
+            value: `${config.fighter.checkIntervalSeconds}s`,
+            inline: true
+          },
+          {
+            name: '⚙️ Advance Check Days',
+            value: `${config.fighter.advanceCheckDays} days`,
+            inline: true
+          },
+          {
+            name: '⚙️ Max Concurrent',
+            value: `${config.fighter.maxConcurrent} bursts`,
             inline: true
           }
         ],

@@ -27,6 +27,7 @@ class WaitlistCommands {
   async status(message, args) {
     try {
       const status = waitlistScheduler.getStatus();
+      const config = require('../../../config/envConfig');
       
       const embed = {
         color: status.enabled ? 0x00ff00 : 0xff0000,
@@ -46,6 +47,21 @@ class WaitlistCommands {
             name: 'Total Targets',
             value: `${status.targetCount}`,
             inline: true
+          },
+          {
+            name: '⚙️ Check Interval',
+            value: `${config.scheduler.checkIntervalSeconds}s`,
+            inline: true
+          },
+          {
+            name: '⚙️ Advance Check Days',
+            value: `${config.scheduler.advanceCheckDays} days`,
+            inline: true
+          },
+          {
+            name: '⚙️ Court Range',
+            value: `${config.scheduler.courtIdStart}-${config.scheduler.courtIdEnd}`,
+            inline: true
           }
         ],
         timestamp: new Date()
@@ -58,7 +74,7 @@ class WaitlistCommands {
           const timeInfo = t.startTime 
             ? `at ${t.startTime} for ${t.duration}min`
             : `(${t.timeRange?.start}-${t.timeRange?.end})`;
-          return `**${t.id}**: ${t.date} ${timeInfo} - Courts 52667-52677`;
+          return `**${t.id}**: ${t.date} ${timeInfo} - Courts ${config.scheduler.courtIdStart}-${config.scheduler.courtIdEnd}`;
         }).join('\n');
         
         embed.fields.push({

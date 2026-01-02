@@ -27,6 +27,7 @@ class ReservationCheckerCommands {
   async status(message, args) {
     try {
       const status = reservationChecker.getStatus();
+      const config = require('../../config/envConfig');
       
       const lastCheck = status.lastCheckTime 
         ? new Date(status.lastCheckTime).toLocaleString('en-US', { 
@@ -67,6 +68,11 @@ class ReservationCheckerCommands {
           {
             name: 'Tracked Reservations',
             value: `${status.trackedReservations}`,
+            inline: true
+          },
+          {
+            name: '⚙️ State File',
+            value: `${config.reservationChecker.stateFilePath.split('/').pop()}`,
             inline: true
           }
         ],
